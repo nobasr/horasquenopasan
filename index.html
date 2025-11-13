@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Horas que no duermen</title>
+  <!-- Futuristic/monospace font for HUD -->
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    body { margin: 0; overflow: hidden; background: #000; }
+    canvas { display: block; }
+    #intro-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #000;
+      color: #fff;
+      font-family: 'Arial', sans-serif;
+      font-size: 32px;
+      letter-spacing: 2px;
+      z-index: 2147483646;
+      opacity: 1;
+      transition: opacity 2.5s ease;
+      pointer-events: none;
+    }
+    #intro-overlay.fade-out {
+      opacity: 0;
+    }
+    /* Minimal centered music player (hidden by default) */
+    #music-player {
+      position: fixed;
+      left: 50%;
+      top: 80%;
+      transform: translate(-50%, -50%);
+      background: linear-gradient(135deg, rgba(12, 12, 12, 0.95), rgba(2, 2, 2, 0.92));
+      color: #e0e0e0;
+      font-family: Arial, Helvetica, sans-serif;
+      padding: 24px 28px;
+      border-radius: 16px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.85), 0 0 24px rgba(0, 0, 0, 0.6);
+      border: 1px solid rgba(80, 80, 80, 0.4);
+      display: none; /* hidden by default */
+      align-items: center;
+      gap: 16px;
+      min-width: 500px;
+      z-index: 9999;
+    }
+    #music-player.visible { display: flex; }
+    #music-player .meta { flex: 1; font-size: 16px; }
+    #music-player .meta .title { font-weight: 600; font-size: 18px; color: #7a9fd4; margin: 4px 0 8px 0; }
+    #music-player .player-icon { 
+      background: linear-gradient(135deg, rgba(20, 20, 20, 0.95), rgba(8, 8, 8, 0.95)); 
+      border: 1px solid rgba(90, 90, 90, 0.5); 
+      color: #d8d8d8; 
+      padding: 10px 14px; 
+      border-radius: 8px; 
+      cursor: pointer; 
+      font-size: 18px;
+      width: 44px;
+      height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
+    }
+    #music-player .player-icon:hover { 
+      background: linear-gradient(135deg, rgba(32, 32, 32, 0.95), rgba(12, 12, 12, 0.95)); 
+      border-color: rgba(130, 130, 130, 0.6);
+      color: #f5f5f5;
+      transform: translateY(-2px);
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.75);
+    }
+    #music-player .player-icon:active {
+      transform: translateY(0);
+    }
+    #player-play {
+      width: 50px;
+      height: 50px;
+      font-size: 20px;
+      background: linear-gradient(135deg, rgba(28, 28, 28, 0.97), rgba(10, 10, 10, 0.95));
+    }
+    #player-repeat {
+      position: relative;
+    }
+    #player-repeat.repeat-none {
+      opacity: 0.6;
+    }
+    #player-repeat.repeat-all {
+      opacity: 1;
+    }
+    #player-repeat.repeat-one {
+      opacity: 1;
+    }
+    #player-repeat.repeat-one::after {
+      content: '1';
+      position: absolute;
+      bottom: 2px;
+      right: 2px;
+      font-size: 10px;
+      color: #a0c0f0;
+      font-weight: bold;
+    }
+    #player-progress { 
+      width: 100%; 
+      appearance: none;
+      -webkit-appearance: none; 
+      height: 10px; 
+      background: rgba(18, 18, 18, 0.85); 
+      border-radius: 5px; 
+      outline: none;
+      margin-top: 8px;
+    }
+    #player-progress::-webkit-slider-thumb { 
+      -webkit-appearance: none; 
+      width: 20px; 
+      height: 20px; 
+      background: linear-gradient(135deg, #4a4a4a, #2c2c2c); 
+      border-radius: 50%; 
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.8), 0 0 18px rgba(0, 0, 0, 0.6);
+      cursor: pointer;
+      border: 2px solid rgba(120, 120, 120, 0.8);
+    }
+    #player-progress::-moz-range-thumb {
+      width: 20px;
+      height: 20px;
+      background: linear-gradient(135deg, #4a4a4a, #2c2c2c);
+      border-radius: 50%;
+      border: 2px solid rgba(120, 120, 120, 0.8);
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.8), 0 0 18px rgba(0, 0, 0, 0.6);
+      cursor: pointer;
+    }
+    #player-progress::-moz-range-track {
+      height: 10px;
+      background: rgba(18, 18, 18, 0.85);
+      border-radius: 5px;
+    }
+
+    /* Typewriter HUD (top-right) */
+    #typewriter-hud {
+      position: fixed;
+      top: 12px;
+      right: 12px;
+      z-index: 2147483647; /* very high */
+      color: #fff;
+      font-family: monospace, 'Courier New', monospace;
+      font-size: 25px;
+      line-height: 1.3;
+      pointer-events: none; /* HUD shouldn't block clicks */
+      text-align: right;
+      user-select: none;
+      opacity: 0.95;
+    }
+    #typewriter-hud .line {
+      white-space: nowrap;
+      overflow: visible;
+    }
+    /* Soft flickering cursor */
+    .cursor {
+      display: inline-block;
+      width: 10px;
+      margin-left: 6px;
+      background: linear-gradient(90deg,#ffffff80,#ffffff40);
+      border-radius: 2px;
+      animation: flicker 1.2s infinite;
+      vertical-align: text-bottom;
+      pointer-events: none;
+    }
+    @keyframes flicker {
+      0% { opacity: 1; transform: scaleX(1); }
+      50% { opacity: 0.45; transform: scaleX(0.9); }
+      100% { opacity: 1; transform: scaleX(1); }
+    }
+
+    /* Image overlay */
+    #image-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.85);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 10000;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+    #image-overlay.visible {
+      display: flex;
+      opacity: 1;
+    }
+    #image-overlay img {
+      max-width: 90%;
+      max-height: 90%;
+      object-fit: contain;
+      box-shadow: 0 10px 50px rgba(0, 0, 0, 0.8);
+    }
+    #cursor-click {
+      position: fixed;
+      bottom: -100px;
+      right: -100px;
+      z-index: 2147483647;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.6s ease;
+      width: 300px;
+    }
+    #cursor-click.visible {
+      opacity: 1;
+    }
+    #image-overlay .close-btn {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      width: 20px;
+      height: 20px;
+      background: rgba(255, 255, 255, 0.2);
+      border: 2px solid rgba(255, 255, 255, 0.4);
+      border-radius: 50%;
+      color: #fff;
+      font-size: 24px;
+      font-weight: bold;
+      cursor: pointer;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      transition: all 0.2s ease;
+      z-index: 10001;
+    }
+    #image-overlay .close-btn:hover {
+      background: rgba(255, 255, 255, 0.3);
+      border-color: rgba(255, 255, 255, 0.6);
+      transform: scale(1.1);
+    }
+  </style>
+</head>
+<body>
+  <div id="intro-overlay">
+    <div>Horas que no duermen</div>
+  </div>
+  <!-- Music player UI (hidden by default) -->
+  <div id="music-player" aria-hidden="true">
+    <button id="player-prev" title="Previous" class="player-icon">⏮</button>
+    <button id="player-play" title="Play/Pause" class="player-icon">▶</button>
+    <button id="player-next" title="Next" class="player-icon">⏭</button>
+    <div class="meta">
+      <div style="font-size:14px;color:#6b8fd4">Now playing</div>
+      <div class="title">bliss - lofi hip hop beat </div>
+      <input id="player-progress" type="range" min="0" max="100" value="0">
+    </div>
+    <button id="player-repeat" title="Repeat" class="player-icon">🔁</button>
+  </div>
+
+  <!-- Hidden native audio element pointing to musica.mp3 -->
+  <audio id="audio" src="./musica.mp3" preload="metadata"></audio>
+
+  <!-- Typewriter HUD (top-right) -->
+  <div id="typewriter-hud" aria-hidden="false"></div>
+
+  <!-- Image overlay -->
+  <div id="image-overlay" aria-hidden="true">
+    <button class="close-btn" id="close-overlay" aria-label="Close">×</button>
+    <img src="./darteluz.png" alt="Darteluz" id="overlay-image">
+  </div>
+  <img id="cursor-click" src="./cursor-click.gif" alt="" aria-hidden="true">
+
+<script type="module" src="./main.js"></script>
+
+<script>
+  window.addEventListener('load', () => {
+    const overlay = document.getElementById('intro-overlay');
+    if (overlay) {
+      setTimeout(() => {
+        overlay.classList.add('fade-out');
+        overlay.addEventListener('transitionend', () => {
+          overlay.style.display = 'none';
+        }, { once: true });
+      }, 2500);
+    }
+    const cursorGif = document.getElementById('cursor-click');
+    if (cursorGif) {
+      const fadeInDuration = 600;
+      const visibleFor = 2000;
+      requestAnimationFrame(() => {
+        cursorGif.classList.add('visible');
+        setTimeout(() => {
+          cursorGif.classList.remove('visible');
+          cursorGif.addEventListener('transitionend', () => {
+            cursorGif.style.display = 'none';
+          }, { once: true });
+        }, visibleFor + fadeInDuration);
+      });
+    }
+  });
+</script>
+ 
+<!-- Typewriter logic: types lines one below the other, erases them, repeats -->
+<script>
+// Lines to display (one per row)
+const TYPEWRITER_LINES = [
+  'entre las horas que pasan',
+  'los sueños se entremezclan',
+  'la vida nocturna comienza',
+  'quizá sea mañana',
+  'que aparezca la iluminación'
+];
+
+const hud = document.getElementById('typewriter-hud');
+
+// Configuration: speeds in ms
+const TYPE_DELAY = 45;    // time between typing chars
+const DELETE_DELAY = 30;  // time between deleting chars
+const LINE_PAUSE = 700;   // pause after a line is fully typed
+const FULL_PAUSE = 1200;  // pause after all lines typed before deleting
+
+// Utility sleep
+const wait = (ms) => new Promise(r => setTimeout(r, ms));
+
+// Create line elements
+function setupLines() {
+  hud.innerHTML = '';
+  for (let i = 0; i < TYPEWRITER_LINES.length; i++) {
+    const div = document.createElement('div');
+    div.className = 'line';
+    // Use a span for the text and keep a cursor span that we move to the active line
+    const span = document.createElement('span');
+    span.className = 'text';
+    span.textContent = '';
+    div.appendChild(span);
+    hud.appendChild(div);
+  }
+}
+
+async function typeAllCycle() {
+  const lines = Array.from(hud.querySelectorAll('.line'));
+  const cursor = document.createElement('span');
+  cursor.className = 'cursor';
+
+  while (true) {
+    // Type each line sequentially
+    for (let i = 0; i < TYPEWRITER_LINES.length; i++) {
+      const target = lines[i].querySelector('.text');
+      // Move cursor to this line
+      lines.forEach(l => { const c = l.querySelector('.cursor'); if (c) l.removeChild(c); });
+      lines[i].appendChild(cursor);
+
+      const text = TYPEWRITER_LINES[i];
+      for (let k = 0; k < text.length; k++) {
+        target.textContent += text[k];
+        await wait(TYPE_DELAY + Math.round(Math.random()*10));
+      }
+      await wait(LINE_PAUSE);
+    }
+
+    // Pause with full text shown
+    await wait(FULL_PAUSE);
+
+    // Erase lines in reverse order
+    for (let i = TYPEWRITER_LINES.length - 1; i >= 0; i--) {
+      const target = lines[i].querySelector('.text');
+      // Move cursor to this line
+      lines.forEach(l => { const c = l.querySelector('.cursor'); if (c) l.removeChild(c); });
+      lines[i].appendChild(cursor);
+
+      while (target.textContent.length > 0) {
+        target.textContent = target.textContent.slice(0, -1);
+        await wait(DELETE_DELAY + Math.round(Math.random()*10));
+      }
+      await wait(150);
+    }
+
+    // small pause before restarting
+    await wait(400);
+  }
+}
+
+// Initialize and start
+setupLines();
+typeAllCycle().catch((e) => console.error('Typewriter error:', e));
+</script>
+</body>
+</html>
