@@ -203,7 +203,7 @@
     }
     #cursor-click {
       position: fixed;
-      bottom: -100px;
+      bottom: -80px;
       right: -100px;
       z-index: 2147483647;
       opacity: 0;
@@ -238,6 +238,25 @@
       border-color: rgba(255, 255, 255, 0.6);
       transform: scale(1.1);
     }
+    /* Credit text at bottom right */
+    #credit-link {
+      position: fixed;
+      bottom: 12px;
+      right: 12px;
+      color: #fff;
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 14px;
+      z-index: 2147483647; /* highest z-index */
+      cursor: pointer;
+      text-decoration: none;
+      opacity: 0.9;
+      transition: opacity 0.2s ease;
+      user-select: none;
+    }
+    #credit-link:hover {
+      opacity: 1;
+      text-decoration: underline;
+    }
   </style>
 </head>
 <body>
@@ -269,6 +288,7 @@
     <img src="./darteluz.png" alt="Darteluz" id="overlay-image">
   </div>
   <img id="cursor-click" src="./cursor-click.gif" alt="" aria-hidden="true">
+  <a id="credit-link" href="https://www.guadalupevallejo.netlify.app" target="_blank" rel="noopener noreferrer">hecho con ♥ por guadiv</a>
 
 <script type="module" src="./main.js"></script>
 
